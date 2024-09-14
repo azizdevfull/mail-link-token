@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UserLoginRequest;
+use App\Http\Requests\UserRegisterRequest;
+use App\Http\Requests\VerifyEmailRequest;
+use App\Mail\SendUserVerifyMail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,14 +14,8 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function register(UserRegisterRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6',
-        ]);
-
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -25,22 +23,20 @@ class AuthController extends Controller
             'verification_token' => Str::random(64),
         ]);
 
-        $verificationLink = env('FRONTEND_URL') . '/verify-email?token=' . $user->verification_token;
-        Mail::send('emails.verify', ['link' => $verificationLink], function ($message) use ($user) {
-            $message->to($user->email);
-            $message->subject('Verify Your Email');
-        });
+        // $verificationLink = config('app.frontend_url') . '/verify-email?token=' . $user->verification_token;
+        // Mail::send('emails.verify', ['link' => $verificationLink], function ($message) use ($user) {
+        //     $message->to($user->email);
+        //     $message->subject('Verify Your Email');
+        // });
+
+        Mail::to($user->email)->send(new SendUserVerifyMail($user));
         return response()->json([
             'message' => 'Please check your email to verify your account.',
         ], 201);
     }
 
-    public function verifyEmail(Request $request)
+    public function verifyEmail(VerifyEmailRequest $request)
     {
-        $request->validate([
-            'token' => 'required|string',
-        ]);
-
         // Find the user by verification token
         $user = User::where('verification_token', $request->token)->first();
 
@@ -63,13 +59,8 @@ class AuthController extends Controller
         ]);
     }
 
-    public function login(Request $request)
+    public function login(UserLoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|string|email|max:255',
-            'password' => 'required|string|min:6',
-        ]);
-
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
