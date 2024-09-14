@@ -23,12 +23,6 @@ class AuthController extends Controller
             'verification_token' => Str::random(64),
         ]);
 
-        // $verificationLink = config('app.frontend_url') . '/verify-email?token=' . $user->verification_token;
-        // Mail::send('emails.verify', ['link' => $verificationLink], function ($message) use ($user) {
-        //     $message->to($user->email);
-        //     $message->subject('Verify Your Email');
-        // });
-
         Mail::to($user->email)->send(new SendUserVerifyMail($user));
         return response()->json([
             'message' => 'Please check your email to verify your account.',
